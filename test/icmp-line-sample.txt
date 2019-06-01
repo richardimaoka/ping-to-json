@@ -1,0 +1,1 @@
+64 bytes from nrt12s17-in-f46.1e100.net (172.217.26.46): icmp_seq=1 ttl=57 time=8.69 ms

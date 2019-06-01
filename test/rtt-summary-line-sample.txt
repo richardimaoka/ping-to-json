@@ -1,0 +1,1 @@
+5 packets transmitted, 5 received, 0% packet loss, time 4004ms

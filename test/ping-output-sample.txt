@@ -1,0 +1,10 @@
+PING google.com (172.217.26.46) 56(84) bytes of data.
+64 bytes from nrt12s17-in-f46.1e100.net (172.217.26.46): icmp_seq=1 ttl=57 time=8.69 ms
+64 bytes from nrt12s17-in-f46.1e100.net (172.217.26.46): icmp_seq=2 ttl=57 time=8.66 ms
+64 bytes from nrt12s17-in-f46.1e100.net (172.217.26.46): icmp_seq=3 ttl=57 time=18.0 ms
+64 bytes from nrt12s17-in-f46.1e100.net (172.217.26.46): icmp_seq=4 ttl=57 time=7.59 ms
+64 bytes from nrt12s17-in-f46.1e100.net (172.217.26.46): icmp_seq=5 ttl=57 time=8.81 ms
+
+--- google.com ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4004ms
+rtt min/avg/max/mdev = 7.590/10.362/18.049/3.870 ms
