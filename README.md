@@ -116,7 +116,9 @@ rtt min/avg/max/mdev = 7.590/10.362/18.049/3.870 ms
 
 ## Prerequisite:
 
-`sed` and `awk` are required. `jq` is not needed unless you pipe the output to the `jq` command like this:
+`sed` and `awk` are required. 
+
+`jq` is not needed unless you pipe the output to the `jq` command like this:
 
 ```
 >ping google.com | ping-to-json/ping-to-json.sh
