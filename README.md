@@ -1,8 +1,3 @@
----
-title: Ping-to-json shell script
-date: "2019-05-13T01:31:00.000+0900"
----
-
 ## Instruction:
 
 ```
