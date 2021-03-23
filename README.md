@@ -2,10 +2,10 @@
 
 ```
 > git clone 
-> ping google.com | ping-to-json/ping-to-json.sh
+> ping -4 google.com | ping-to-json/ping-to-json.sh
 
 # You can also use `jq` for better formatting and further processing 
-# > ping google.com | ping-to-json/ping-to-json.sh | jq
+# > ping -4 google.com | ping-to-json/ping-to-json.sh | jq
 ```
 
 and get the output like below:
