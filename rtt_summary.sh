@@ -35,7 +35,7 @@ else
     >&2 echo "ERROR: '${SECOND_PART}', is not in the form of ' ** received', from the below summary line:"
     >&2 echo ">${SUMMARY_LINE}"
     exit 1
-  elif [ -z "$(echo "${THIRD_PART}" | awk "/^\s[0-9]+\%\spacket\sloss$/")" ] ; then
+  elif [ -z "$(echo "${THIRD_PART}" | awk "/^\s[0-9]+"%"\spacket\sloss$/")" ] ; then
     >&2 echo "ERROR: '${THIRD_PART}', is not in the form of ' **% packet loss', from the below summary line:"
     >&2 echo ">${SUMMARY_LINE}"
     exit 1
