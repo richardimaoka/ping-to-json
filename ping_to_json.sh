@@ -131,9 +131,9 @@ while read -r line; do
   if echo "${line}" | grep "bytes from" | grep "icmp_seq=" | grep "ttl=" | grep -q "time="; then
     if [ -z "${ICMP_SEQUENCES}" ]; then
       # ICMP_SEQUENCES="$(echo "${line}" | ./icmp_line.sh)"
-      ICMP_SEQUENCES= icmp_line_handler "${line}"
+      ICMP_SEQUENCES=$(icmp_line_handler "${line}")
     else
-      ICMP_SEQ = icmp_line_handler "${line}"
+      ICMP_SEQ=$(icmp_line_handler "${line}")
       ICMP_SEQUENCES="${ICMP_SEQUENCES}, ${ICMP_SEQ}"
       # ICMP_SEQUENCES="${ICMP_SEQUENCES}, $(echo "${line}" | ./icmp_line.sh)"
     fi
