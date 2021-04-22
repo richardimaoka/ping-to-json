@@ -125,6 +125,214 @@ icmp_line_handler() {
   fi
 }
 
+rtt_statistics_handler() {
+  RTT_LINE=$1
+
+  if [ -z "${RTT_LINE}" ]; then
+    echo >&2 'ERROR: std input for the RTT statistics line is empty'
+    exit 1
+  elif ! echo "${RTT_LINE}" | grep -q "rtt min/avg/max/mdev"; then
+    echo >&2 'ERROR: std input for the RTT statistics line does not start with "rtt min/avg/max/mdev":'
+    echo >&2 ">${RTT_LINE}"
+    exit 1
+  elif [ "$(echo "${RTT_LINE}" | wc -l)" -ne 1 ]; then
+    echo >&2 'ERROR: Multiple lines in std input for the RTT statistics line:'
+    echo >&2 ">${RTT_LINE}"
+    exit 1
+  else
+    # Parse the line (e.g.) "rtt min/avg/max/mdev = 97.749/98.197/98.285/0.380 ms"
+
+    # part-by-part validation
+    FIRST_PART=$(echo "${RTT_LINE}" | awk '{print $1}')  # "rtt"
+    SECOND_PART=$(echo "${RTT_LINE}" | awk '{print $2}') # "min/avg/max/mdev"
+    THIRD_PART=$(echo "${RTT_LINE}" | awk '{print $3}')  # "="
+    FOURTH_PART=$(echo "${RTT_LINE}" | awk '{print $4}') # (e.g.) "97.749/98.197/98.285/0.380"
+    FIFTH_PART=$(echo "${RTT_LINE}" | awk '{print $5}')  # (e.g.) "ms"
+
+    if [ "${FIRST_PART}" != "rtt" ]; then
+      echo >&2 "ERROR: '${FIRST_PART}' is not equal to 'rtt', in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    elif [ "${SECOND_PART}" != "min/avg/max/mdev" ]; then
+      echo >&2 "ERROR: '${SECOND_PART}' is not equal to 'min/avg/max/mdev', in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    elif [ "${THIRD_PART}" != "=" ]; then
+      echo >&2 "ERROR: '${THIRD_PART}' is not equal to '=', in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    # FOURTH_PART to be validated later
+    elif [ -n "$(echo "${FIFTH_PART}" | awk "/[1-9]/")" ]; then
+      echo >&2 "ERROR: '${FIFTH_PART}' should not include any digit, in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    fi
+
+    # Validate and retrieve values from FOURTH_PART
+    # (e.g.) "97.749/98.197/98.285/0.380"
+    RTT_MIN=$(echo "${FOURTH_PART}" | awk -F'/' '{print $1}' | awk '/^[+-]?([0-9]*[.])?[0-9]+$/')
+    if [ -z "${RTT_MIN}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the first number from '${FOURTH_PART}', in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    fi
+    # (e.g.) "97.749/98.197/98.285/0.380"
+    RTT_AVG=$(echo "$FOURTH_PART" | awk -F'/' '{print $2}' | awk '/^[+-]?([0-9]*[.])?[0-9]+$/')
+    if [ -z "${RTT_AVG}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the second number from '${FOURTH_PART}', in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    fi
+    # (e.g.) "97.749/98.197/98.285/0.380"
+    RTT_MAX=$(echo "$FOURTH_PART" | awk -F'/' '{print $3}' | awk '/^[+-]?([0-9]*[.])?[0-9]+$/')
+    if [ -z "${RTT_MAX}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the third number from '${FOURTH_PART}', in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    fi
+    # (e.g.) "97.749/98.197/98.285/0.380"
+    RTT_MDEV=$(echo "$FOURTH_PART" | awk -F'/' '{print $4}' | awk '/^[+-]?([0-9]*[.])?[0-9]+$/')
+    if [ -z "${RTT_MDEV}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the fourth number from '${FOURTH_PART}', in the below RTT line:"
+      echo >&2 ">${RTT_LINE}"
+      exit 1
+    fi
+
+    RTT_UNIT=$(echo "${RTT_LINE}" | awk '{print $5}')
+    case "$RTT_UNIT" in
+    ms)
+      RTT_UNIT="milliseconds"
+      ;;
+    s)
+      RTT_UNIT="seconds"
+      ;;
+    esac
+
+    # JSON like below
+    # {
+    #   "min":  { "value": 97.749, "unit": "milliseconds" },
+    #   "avg":  { "value": 98.197, "unit": "milliseconds" },
+    #   "max":  { "value": 98.285, "unit": "milliseconds" },
+    #   "mdev": { "value": 0.380,  "unit":"milliseconds" }
+    # }
+    echo "{"
+    echo "  \"min\":  { \"value\": \"${RTT_MIN}\",  \"unit\": \"${RTT_UNIT}\" },"
+    echo "  \"avg\":  { \"value\": \"${RTT_AVG}\",  \"unit\": \"${RTT_UNIT}\" },"
+    echo "  \"max\":  { \"value\": \"${RTT_MAX}\",  \"unit\": \"${RTT_UNIT}\" },"
+    echo "  \"mdev\": { \"value\": \"${RTT_MDEV}\", \"unit\": \"${RTT_UNIT}\" }"
+    echo "}"
+  fi
+
+}
+
+rtt_summary_handler() {
+  SUMMARY_LINE=$1
+
+  if [ -z "${SUMMARY_LINE}" ]; then
+    echo >&2 'ERROR: std input for the RTT summary line is empty'
+    exit 1
+  elif ! echo "${SUMMARY_LINE}" | grep "packets transmitted, " | grep "received, " | grep " packet loss, " | grep -q "time "; then
+    echo >&2 'ERROR: std input for the RTT summary line is not in the form of "** packets transmitted, ** received, *% packet loss, time ****ms"'
+    echo >&2 ">${SUMMARY_LINE}"
+    exit 1
+  elif [ "$(echo "${SUMMARY_LINE}" | wc -l)" -ne 1 ]; then
+    echo >&2 'ERROR: Multiple lines in std input for the RTT summary line:'
+    echo >&2 ">${SUMMARY_LINE}"
+    exit 1
+  else
+    # Parse the line (e.g.) "30 packets transmitted, 30 received, 0% packet loss, time 29034ms"
+
+    # part-by-part validation
+    FIRST_PART=$(echo "${SUMMARY_LINE}" | awk -F',' '{print $1}')  # (e.g.) "30 packets transmitted"
+    SECOND_PART=$(echo "${SUMMARY_LINE}" | awk -F',' '{print $2}') # (e.g.) " 30 received"
+    THIRD_PART=$(echo "${SUMMARY_LINE}" | awk -F',' '{print $3}')  # (e.g.) " 0% packet loss"
+    FOURTH_PART=$(echo "${SUMMARY_LINE}" | awk -F',' '{print $4}') # (e.g.) " time 29034ms"
+
+    if [ -z "$(echo "${FIRST_PART}" | awk "/^[0-9]+\spackets\stransmitted$/")" ]; then
+      echo >&2 "ERROR: '${FIRST_PART}' is not in the form of '** packets transmitted', from the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    elif [ -z "$(echo "${SECOND_PART}" | awk "/^\s[0-9]+\sreceived$/")" ]; then
+      echo >&2 "ERROR: '${SECOND_PART}', is not in the form of ' ** received', from the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    elif [ -z "$(echo "${THIRD_PART}" | awk "/^\s[0-9]+"%"\spacket\sloss$/")" ]; then
+      echo >&2 "ERROR: '${THIRD_PART}', is not in the form of ' **% packet loss', from the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    elif [ -z "$(echo "${FOURTH_PART}" | awk "/^\stime\s[0-9]+[a-z]{1,2}$/")" ]; then
+      echo >&2 "ERROR: '${FOURTH_PART}', is not in the form of ' time **ms', from the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    fi
+
+    # 1. Parse the "30 packets transmitted" part of the SUMMARY_LINE
+    # (e.g.) "30 packets transmitted"
+    PACKETS_TRANSMITTED=$(echo "${FIRST_PART}" | awk '{print $1}' | awk '/^[0-9]+$/')
+    if [ -z "${PACKETS_TRANSMITTED}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the packets transmitted value from '${FIRST_PART}', in the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    fi
+    # (e.g.) " 30 received"
+    PACKETS_RECEIVED=$(echo "${SECOND_PART}" | awk '{print $1}' | awk '/^[0-9]+$/')
+    if [ -z "${PACKETS_RECEIVED}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the packets received value from '${SECOND_PART}', in the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    fi
+    # (e.g.) " 0% packet loss"
+    PACKET_LOSS_PERCENTAGE=$(echo "${THIRD_PART}" | awk '{print $1}' | sed 's/%//')
+    if [ -z "${PACKET_LOSS_PERCENTAGE}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the packet loss percentage from '${THIRD_PART}', in the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    fi
+    # (e.g.)"time 29034ms"
+    TIME_VALUE=$(echo "${FOURTH_PART}" | awk '{print $2}' | grep -o '^[0-9]*')
+    if [ -z "${PACKETS_TRANSMITTED}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the time value from '${FOURTH_PART}', in the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    fi
+    TIME_UNIT=$(echo "${FOURTH_PART}" | awk '{print $2}' | sed 's/^[0-9]*//')
+    if [ -z "${PACKETS_TRANSMITTED}" ]; then
+      echo >&2 "ERROR: Cannot retrieve the time unit from '${FOURTH_PART}', in the below summary line:"
+      echo >&2 ">${SUMMARY_LINE}"
+      exit 1
+    fi
+    case "$TIME_UNIT" in
+    ms)
+      TIME_UNIT="milliseconds"
+      ;;
+    s)
+      TIME_UNIT="seconds"
+      ;;
+    esac
+
+    # JSON like below in a single line
+    # {
+    #   "packets_transmitted": 30,
+    #   "packets_received": 30,
+    #   "packet_loss_percentage": 0,
+    #   "time": {
+    #     "unit": "milliseconds",
+    #     "value": 29034
+    #   }
+    # }
+    echo "{"
+    echo "  \"packets_transmitted\": ${PACKETS_TRANSMITTED},"
+    echo "  \"packets_received\": ${PACKETS_RECEIVED},"
+    echo "  \"packet_loss_percentage\": ${PACKET_LOSS_PERCENTAGE},"
+    echo "  \"time\": {"
+    echo "    \"unit\": \"${TIME_UNIT}\","
+    echo "    \"value\": ${TIME_VALUE}"
+    echo "  }"
+    echo "}"
+  fi
+
+}
+
 cd "$(dirname "$0")" || exit
 
 while read -r line; do
@@ -143,7 +351,9 @@ while read -r line; do
       echo >&2 "${RTT_STATISTICS_JSON}"
       exit 1
     else
-      RTT_STATISTICS_JSON="$(echo "${line}" | ./rtt_statistics.sh)"
+      # RTT_STATISTICS_JSON="$(echo "${line}" | ./rtt_statistics.sh)"
+      RTT_STATISTICS_JSON=$(rtt_statistics_handler "${line}")
+
     fi
   elif echo "${line}" | grep "packets transmitted, " | grep "received, " | grep " packet loss, " | grep -q "time "; then
     if [ -n "${RTT_SUMMARY_JSON}" ]; then
@@ -151,7 +361,9 @@ while read -r line; do
       echo >&2 "${RTT_SUMMARY_JSON}"
       exit 1
     else
-      RTT_SUMMARY_JSON="$(echo "${line}" | ./rtt_summary.sh)"
+      # RTT_SUMMARY_JSON="$(echo "${line}" | ./rtt_summary.sh)"
+      RTT_SUMMARY_JSON=$(rtt_summary_handler "${line}")
+
     fi
   fi
 done </dev/stdin
