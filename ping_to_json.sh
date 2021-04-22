@@ -338,12 +338,10 @@ cd "$(dirname "$0")" || exit
 while read -r line; do
   if echo "${line}" | grep "bytes from" | grep "icmp_seq=" | grep "ttl=" | grep -q "time="; then
     if [ -z "${ICMP_SEQUENCES}" ]; then
-      # ICMP_SEQUENCES="$(echo "${line}" | ./icmp_line.sh)"
       ICMP_SEQUENCES=$(icmp_line_handler "${line}")
     else
       ICMP_SEQ=$(icmp_line_handler "${line}")
       ICMP_SEQUENCES="${ICMP_SEQUENCES}, ${ICMP_SEQ}"
-      # ICMP_SEQUENCES="${ICMP_SEQUENCES}, $(echo "${line}" | ./icmp_line.sh)"
     fi
   elif echo "${line}" | grep -q "rtt min/avg/max/mdev"; then
     if [ -n "${RTT_STATISTICS_JSON}" ]; then
@@ -351,7 +349,6 @@ while read -r line; do
       echo >&2 "${RTT_STATISTICS_JSON}"
       exit 1
     else
-      # RTT_STATISTICS_JSON="$(echo "${line}" | ./rtt_statistics.sh)"
       RTT_STATISTICS_JSON=$(rtt_statistics_handler "${line}")
 
     fi
@@ -361,7 +358,6 @@ while read -r line; do
       echo >&2 "${RTT_SUMMARY_JSON}"
       exit 1
     else
-      # RTT_SUMMARY_JSON="$(echo "${line}" | ./rtt_summary.sh)"
       RTT_SUMMARY_JSON=$(rtt_summary_handler "${line}")
 
     fi
